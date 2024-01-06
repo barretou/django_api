@@ -2,46 +2,53 @@ from .models import Drink
 from .serializers import DrinkSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework import status
 
-@api_view(['GET', 'POST'])
-def create_and_list_drinks(request, format=None):
+class DrinksList(APIView):
     """
-    Get all drinks, serialize them and returns JSON
+    List all snippets, or create a new snippet.
     """
-    if request.method == 'GET':
-        drinks = Drink.objects.all()
-        drinks_serialized = DrinkSerializer(drinks, many=True)
-        return Response(drinks_serialized.data, status = status.HTTP_200_OK)
     
-    if request.method == 'POST':
+    def get(self, request, format=None):
+        drinks = Drink.objects.all().order_by('name')
+        serializer = DrinkSerializer(drinks, many=True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+    
+    def post(self, request, format=None):
         serializer = DrinkSerializer(data=request.data)
-
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status = status.HTTP_201_CREATED)
 
-@api_view(['GET', 'PUT', 'DELETE'])
-def edit_and_delete_drink(request, id, format=None):
+
+
+class DrinksDetail(APIView):
     """
-    Get, edit or delete an specific drink
+    Retrieve, update or delete a snippet instance.
     """
-    try:     
-        drink = Drink.objects.get(pk=id)
-    except Drink.DoesNotExist:
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk):
+        try:
+            return Drink.objects.get(pk=pk)
+        except Drink.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk, format=None):
+        drink = self.get_object(pk)
+        serializer = DrinkSerializer(drink)
+        return Response(serializer.data, status = status.HTTP_200_OK)
     
-    if request.method == 'GET':
-        drink_serialized = DrinkSerializer(drink)
-        return Response(drink_serialized.data, status = status.HTTP_200_OK)
+    def put(self, request, pk, format=None):
+        drink = self.get_object(pk)
+        serializer = DrinkSerializer(drink, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status = status.HTTP_200_OK)
+        
+        return Response(status=status.HTTP_400_BAD_REQUEST)
     
-    elif request.method == 'PUT':
-        drink_serialized = DrinkSerializer(drink, data=request.data)
-        if drink_serialized.is_valid():
-            drink_serialized.save()
-            return Response(drink_serialized.data)
-        return Response(drink_serialized.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
+    def delete(self, request, pk, format=None):
+        drink = self.get_object(pk)
         drink.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
